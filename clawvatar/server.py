@@ -274,13 +274,16 @@ async def websocket_endpoint(ws: WebSocket):
     # Per-connection state
     idle_streaming = True
     idle_fps = 10
-    is_processing = False
+    last_audio_time = 0.0  # timestamp of last audio message
+    AUDIO_COOLDOWN = 1.5   # seconds after last audio before idle resumes
     disconnected = False
 
     async def idle_loop():
         """Background task: send idle weights when not processing audio."""
         while not disconnected:
-            if idle_streaming and not is_processing:
+            # Only send idle if no audio was received recently
+            elapsed = time.time() - last_audio_time
+            if idle_streaming and elapsed > AUDIO_COOLDOWN:
                 try:
                     w = _pipeline.get_idle_weights()
                     if w:
@@ -316,7 +319,7 @@ async def websocket_endpoint(ws: WebSocket):
                     await ws.send_json({"type": "error", "message": str(e)})
 
             elif msg_type == "audio.batch":
-                is_processing = True
+                last_audio_time = time.time() + 9999  # block idle during batch
                 audio_b64 = msg.get("data", "")
                 sr = msg.get("sample_rate", 16000)
                 chunk_size = msg.get("chunk_size", 1024)
@@ -357,10 +360,11 @@ async def websocket_endpoint(ws: WebSocket):
                     logger.error(f"Batch error: {e}", exc_info=True)
                     await ws.send_json({"type": "error", "message": str(e)})
                 finally:
-                    is_processing = False
+                    # Resume idle after audio duration + cooldown
+                    last_audio_time = time.time()
 
             elif msg_type == "audio":
-                is_processing = True
+                last_audio_time = time.time()
                 audio_b64 = msg.get("data", "")
                 try:
                     pcm_bytes = base64.b64decode(audio_b64)
@@ -370,9 +374,10 @@ async def websocket_endpoint(ws: WebSocket):
                         await ws.send_json(weights_data)
                 except Exception as e:
                     logger.error(f"Audio error: {e}")
-                    await ws.send_json({"type": "error", "message": str(e)})
-                finally:
-                    is_processing = False
+                    try:
+                        await ws.send_json({"type": "error", "message": str(e)})
+                    except Exception:
+                        pass
 
             else:
                 await ws.send_json({"type": "error", "message": f"Unknown: {msg_type}"})

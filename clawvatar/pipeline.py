@@ -86,6 +86,7 @@ class ClawvatarPipeline:
         self.audio_buffer: Optional[AudioStreamBuffer] = None
         self.frame_encoder: Optional[FrameEncoder] = None
         self.avatar: Optional[AvatarModel] = None
+        self._speech_hold_until: float = 0.0  # hold speech state for smooth transitions
         self.metrics = PipelineMetrics()
         self._ready = False
 
@@ -234,14 +235,18 @@ class ClawvatarPipeline:
 
         self.audio_buffer.push(audio_chunk)
 
-        # Dual speech detection: VAD + energy threshold
+        # Speech detection with hold timer to prevent jitter
         rms = float(np.sqrt(np.mean(audio_chunk ** 2)))
         try:
             is_speech_vad = self.vad.is_speech(audio_chunk)
         except Exception:
             is_speech_vad = False
-        is_speech_energy = rms > 0.01  # very low threshold
-        is_speech = is_speech_vad or is_speech_energy
+        is_speech_raw = is_speech_vad or rms > 0.01
+
+        now = time.time()
+        if is_speech_raw:
+            self._speech_hold_until = now + 0.4  # hold for 400ms after last speech
+        is_speech = now < self._speech_hold_until
         self.audio_buffer.is_speaking = is_speech
 
         # Prosody analysis (pitch, energy, rhythm, emotion)

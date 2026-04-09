@@ -90,10 +90,22 @@
                 <button class="btn btn-p" onclick="toggleMic()" id="btnM">Start Microphone</button>
                 <div class="bar"><div id="lvl"></div></div>
             </div>
-            <!-- Settings -->
+            <!-- Background -->
             <div class="card">
-                <h3>Settings</h3>
-                <button class="btn btn-s" onclick="toggleBg()">Toggle Background</button>
+                <h3>Background</h3>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                    <div onclick="setBg('#0d0d14')" style="width:28px;height:28px;border-radius:6px;background:#0d0d14;border:2px solid #444;cursor:pointer" title="Dark"></div>
+                    <div onclick="setBg('#1a1520')" style="width:28px;height:28px;border-radius:6px;background:#1a1520;border:2px solid #444;cursor:pointer" title="Purple"></div>
+                    <div onclick="setBg('#151a20')" style="width:28px;height:28px;border-radius:6px;background:#151a20;border:2px solid #444;cursor:pointer" title="Blue"></div>
+                    <div onclick="setBg('#1a2015')" style="width:28px;height:28px;border-radius:6px;background:#1a2015;border:2px solid #444;cursor:pointer" title="Green"></div>
+                    <div onclick="setBg('#ffffff')" style="width:28px;height:28px;border-radius:6px;background:#fff;border:2px solid #444;cursor:pointer" title="White"></div>
+                    <div onclick="setBg('#00ff00')" style="width:28px;height:28px;border-radius:6px;background:#0f0;border:2px solid #444;cursor:pointer" title="Green Screen"></div>
+                    <div onclick="setBg('transparent')" style="width:28px;height:28px;border-radius:6px;background:repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 12px 12px;border:2px solid #444;cursor:pointer" title="Transparent"></div>
+                    <input type="color" id="bgColor" value="#0d0d14" onchange="setBg(this.value)" style="width:28px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:0" title="Custom">
+                </div>
+                <input type="file" id="bgFile" accept="image/*" style="display:none">
+                <button class="btn btn-s" onclick="document.getElementById('bgFile').click()">Upload Background Image</button>
+                <button class="btn btn-s" onclick="toggleGrid()">Toggle Grid</button>
                 <button class="btn btn-s" onclick="resetCam()">Reset Camera</button>
             </div>
         </div>
@@ -214,13 +226,24 @@ document.getElementById('view').ondragleave=()=>{dz.style.borderColor=''};
 document.getElementById('view').ondrop=e=>{e.preventDefault();dz.style.borderColor='';if(e.dataTransfer.files.length){const fi=document.getElementById('fi');fi.files=e.dataTransfer.files;fi.onchange();}};
 
 // --- Settings ---
-window.toggleBg=function(){
-    bgIdx=(bgIdx+1)%bgColors.length;
-    if(bgColors[bgIdx]==='transparent'){scene.background=null;grid.visible=false;}
-    else{scene.background=new THREE.Color(bgColors[bgIdx]);grid.visible=true;}
-    log('Background: '+(bgColors[bgIdx]==='transparent'?'transparent':bgColors[bgIdx]));
+window.setBg=function(color){
+    if(color==='transparent'){scene.background=null;R.setClearColor(0x000000,0);}
+    else{scene.background=new THREE.Color(color);R.setClearColor(new THREE.Color(color),1);}
 };
+window.toggleGrid=function(){grid.visible=!grid.visible;};
 window.resetCam=function(){cam.position.set(0,1.35,.9);ctrl.target.set(0,1.3,0);ctrl.update();};
+
+// Background image
+document.getElementById('bgFile').onchange=function(){
+    if(!this.files.length)return;
+    const url=URL.createObjectURL(this.files[0]);
+    new THREE.TextureLoader().load(url,function(tex){
+        tex.colorSpace=THREE.SRGBColorSpace;
+        scene.background=tex;
+        log('Background image set','ok');
+    });
+    this.value='';
+};
 
 // --- Expose to non-module scope ---
 window._tgtW=()=>tgtW; window._tgtH=()=>tgtH;
