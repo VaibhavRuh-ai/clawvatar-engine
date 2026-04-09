@@ -253,7 +253,7 @@ window._vrm=()=>vrm;
 
 <script>
 // === Networking (non-module, always runs) ===
-var _ws=null,connected=false,sentC=0,recvC=0;
+var _ws=null,connected=false,sentC=0,recvC=0,isPlaying=false;
 
 function log(m,c){var d=document.createElement('div');d.className=c||'';d.textContent=new Date().toLocaleTimeString()+' '+m;var b=document.getElementById('log');b.appendChild(d);b.scrollTop=99999;}
 
@@ -282,6 +282,8 @@ function doConnect(){
             var msg=JSON.parse(e.data);
             if(msg.type==='weights'){
                 recvC++;document.getElementById('sRecv').textContent=recvC;
+                // Don't apply idle weights during batch playback
+                if(isPlaying) return;
                 var w=msg.weights||{},h=msg.head||{};
                 window._setTgt(w,{y:h.yaw||0,p:h.pitch||0,r:h.roll||0});
                 if(msg.viseme)document.getElementById('hVis').textContent=msg.viseme;
@@ -344,6 +346,7 @@ document.getElementById('audioFile').onchange=async function(){
         var startT=ctx.currentTime;src.start(startT);
         log('Playing: '+dur.toFixed(1)+'s, '+frames.length+' frames','ok');
         document.getElementById('spk').classList.add('active');
+        isPlaying=true;
 
         var fi=0;
         function sync(){
@@ -353,10 +356,9 @@ document.getElementById('audioFile').onchange=async function(){
                 fi=target;var f=frames[fi];
                 window._setTgt(f.w||{},{y:(f.h&&f.h.yaw)||0,p:(f.h&&f.h.pitch)||0,r:(f.h&&f.h.roll)||0});
                 if(f.v)document.getElementById('hVis').textContent=f.v;
-                document.getElementById('spk').classList.toggle('active',!!f.s);
             }
             if(elapsed<dur)requestAnimationFrame(sync);
-            else{window._setTgt({},{y:0,p:0,r:0});document.getElementById('spk').classList.remove('active');log('Done','ok');}
+            else{isPlaying=false;window._setTgt({},{y:0,p:0,r:0});document.getElementById('spk').classList.remove('active');log('Done','ok');}
         }
         sync();
         src.onended=function(){ctx.close()};
