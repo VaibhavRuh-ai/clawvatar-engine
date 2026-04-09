@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config with local paths
+clawvatar.yaml
+
+# Large model files
+*.glb
+*.vrm
+*.fbx
+*.onnx
+!avatars/README.md
+
+# Piper models
+/models/
