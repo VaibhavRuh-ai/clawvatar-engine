@@ -247,12 +247,19 @@ window.doConnect=function(){
         try{
             const msg=JSON.parse(e.data);
             if(msg.type==='weights'){
+                // Idle or live weights — apply directly
                 tgtW=msg.weights||{};
-                tgtH={y:(msg.head&&msg.head.yaw)||0,p:(msg.head&&msg.head.pitch)||0,r:(msg.head&&msg.head.roll)||0};
+                const h=msg.head||{};
+                tgtH={y:h.yaw||0,p:h.pitch||0,r:h.roll||0};
+            }else if(msg.type==='batch_weights'){
+                // Batch response — stored for sync playback (handled by audio upload)
+                if(window._batchResolve) window._batchResolve(msg.frames);
             }else if(msg.type==='avatar.ready'){
                 log('Avatar ready: '+(msg.info&&msg.info.name),'ok');
             }else if(msg.type==='error'){
                 log('Error: '+msg.message,'er');
+            }else if(msg.type==='config.ok'){
+                log('Config: idle='+msg.idle+' fps='+msg.idle_fps,'ok');
             }
         }catch(err){}
     };
@@ -298,23 +305,14 @@ document.getElementById('audioFile').onchange=async function(){
         const fullBytes=new Uint8Array(fullI16.buffer);
         let fullBin='';for(let j=0;j<fullBytes.length;j++) fullBin+=String.fromCharCode(fullBytes[j]);
 
-        // Send batch request and wait for response
+        // Send batch request and wait for response via shared handler
         const allWeights=await new Promise((resolve,reject)=>{
-            const origHandler=ws.onmessage;
-            ws.onmessage=function(e){
-                try{
-                    const msg=JSON.parse(e.data);
-                    if(msg.type==='batch_weights'){
-                        ws.onmessage=origHandler;
-                        resolve(msg.frames);
-                    }else if(msg.type==='error'){
-                        ws.onmessage=origHandler;
-                        reject(new Error(msg.message));
-                    }else if(origHandler) origHandler(e);
-                }catch(err){ws.onmessage=origHandler;reject(err);}
-            };
+            window._batchResolve=resolve;
             ws.send(JSON.stringify({type:'audio.batch',data:btoa(fullBin),sample_rate:targetRate,chunk_size:1024}));
+            // Timeout after 30s
+            setTimeout(()=>{window._batchResolve=null;reject(new Error('Batch timeout'));},30000);
         });
+        window._batchResolve=null;
 
         log('Got '+allWeights.length+' frames. Playing...','ok');
 

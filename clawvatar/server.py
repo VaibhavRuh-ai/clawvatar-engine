@@ -1,7 +1,8 @@
-"""Clawvatar WebSocket server — audio in, 3D avatar video frames out."""
+"""Clawvatar WebSocket server — audio in, animated avatar out."""
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -240,21 +241,27 @@ async def avatar_info():
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
-    """Main WebSocket endpoint.
+    """Main WebSocket endpoint with continuous idle streaming.
 
-    Protocol:
-        Client → Server:
-            {"type": "audio", "data": "<base64 PCM int16>", "sample_rate": 16000}
-            {"type": "avatar.load", "model_path": "/path/to/model.glb"}
-            {"type": "idle"}
-            {"type": "ping"}
+    Modes:
+        - idle: sends idle weights at ~10fps when no audio (blink, breathe, sway)
+        - audio: processes audio chunks, sends weights in real-time
+        - audio.batch: processes entire audio at once, returns all weights
+        - video: same as above but returns rendered JPEG frames instead of weights
 
-        Server → Client:
-            {"type": "frame", "data": "<base64 JPEG>", "timestamp": ms, "latency_ms": float, "is_speaking": bool}
-            {"type": "avatar.ready", "info": {...}}
-            {"type": "idle_frame", "data": "<base64>", "timestamp": ms}
-            {"type": "error", "message": "..."}
-            {"type": "pong"}
+    Client → Server:
+        {"type": "audio", "data": "<b64 PCM16>", "sample_rate": 16000}
+        {"type": "audio.batch", "data": "<b64 PCM16>", "sample_rate": 16000, "chunk_size": 1024}
+        {"type": "avatar.load", "model_path": "/path/to/avatar.vrm"}
+        {"type": "config", "idle_fps": 10, "mode": "weights"}
+        {"type": "ping"}
+
+    Server → Client:
+        {"type": "weights", ...}           — blend shape weights + head pose
+        {"type": "batch_weights", ...}     — all weights for batch audio
+        {"type": "avatar.ready", ...}
+        {"type": "error", "message": ...}
+        {"type": "pong"}
     """
     await ws.accept()
     logger.info("WebSocket client connected")
@@ -263,6 +270,27 @@ async def websocket_endpoint(ws: WebSocket):
         await ws.send_json({"type": "error", "message": "Pipeline not initialized"})
         await ws.close()
         return
+
+    # Per-connection state
+    idle_streaming = True
+    idle_fps = 10
+    is_processing = False
+    disconnected = False
+
+    async def idle_loop():
+        """Background task: send idle weights when not processing audio."""
+        while not disconnected:
+            if idle_streaming and not is_processing:
+                try:
+                    w = _pipeline.get_idle_weights()
+                    if w:
+                        await ws.send_json(w)
+                except Exception:
+                    break
+            await asyncio.sleep(1.0 / idle_fps)
+
+    # Start idle loop in background
+    idle_task = asyncio.create_task(idle_loop())
 
     try:
         while True:
@@ -273,6 +301,12 @@ async def websocket_endpoint(ws: WebSocket):
             if msg_type == "ping":
                 await ws.send_json({"type": "pong"})
 
+            elif msg_type == "config":
+                # Configure connection
+                idle_fps = msg.get("idle_fps", idle_fps)
+                idle_streaming = msg.get("idle", idle_streaming)
+                await ws.send_json({"type": "config.ok", "idle_fps": idle_fps, "idle": idle_streaming})
+
             elif msg_type == "avatar.load":
                 model_path = msg.get("model_path", "")
                 try:
@@ -282,7 +316,7 @@ async def websocket_endpoint(ws: WebSocket):
                     await ws.send_json({"type": "error", "message": str(e)})
 
             elif msg_type == "audio.batch":
-                # Batch mode: receive entire audio, process all at once, return all weights
+                is_processing = True
                 audio_b64 = msg.get("data", "")
                 sr = msg.get("sample_rate", 16000)
                 chunk_size = msg.get("chunk_size", 1024)
@@ -309,9 +343,8 @@ async def websocket_endpoint(ws: WebSocket):
                     elapsed = (time.time() - start_t) * 1000
                     duration = len(full_audio) / sr
                     logger.info(
-                        f"Batch processed: {len(frames)} frames, "
-                        f"{duration:.1f}s audio in {elapsed:.0f}ms "
-                        f"({elapsed/max(duration*1000,1)*100:.0f}% realtime)"
+                        f"Batch: {len(frames)} frames, {duration:.1f}s audio "
+                        f"in {elapsed:.0f}ms ({elapsed/max(duration*1000,1)*100:.0f}% realtime)"
                     )
 
                     await ws.send_json({
@@ -323,9 +356,11 @@ async def websocket_endpoint(ws: WebSocket):
                 except Exception as e:
                     logger.error(f"Batch error: {e}", exc_info=True)
                     await ws.send_json({"type": "error", "message": str(e)})
+                finally:
+                    is_processing = False
 
             elif msg_type == "audio":
-                # Single chunk mode (for mic streaming)
+                is_processing = True
                 audio_b64 = msg.get("data", "")
                 try:
                     pcm_bytes = base64.b64decode(audio_b64)
@@ -334,114 +369,13 @@ async def websocket_endpoint(ws: WebSocket):
                     if weights_data:
                         await ws.send_json(weights_data)
                 except Exception as e:
-                    logger.error(f"Audio processing error: {e}")
+                    logger.error(f"Audio error: {e}")
                     await ws.send_json({"type": "error", "message": str(e)})
-
-            elif msg_type == "idle":
-                weights_data = _pipeline.get_idle_weights()
-                if weights_data:
-                    await ws.send_json(weights_data)
-
-            elif msg_type == "chat":
-                # Full flow: user text → Gemini → TTS → animation → stream
-                api_key = msg.get("api_key", "")
-                user_text = msg.get("text", "")
-                system_prompt = msg.get("system_prompt", "You are a friendly AI assistant. Keep responses concise, 1-3 sentences.")
-
-                if not api_key:
-                    await ws.send_json({"type": "error", "message": "API key required"})
-                    continue
-                if not user_text:
-                    await ws.send_json({"type": "error", "message": "Text required"})
-                    continue
-
-                try:
-                    # Step 1: Gemini generates response
-                    await ws.send_json({"type": "status", "message": "Thinking..."})
-                    agent_text = await _gemini_respond(api_key, user_text, system_prompt)
-                    await ws.send_json({"type": "agent.text", "text": agent_text})
-                    logger.info(f"Gemini response: '{agent_text[:80]}...'")
-
-                    # Step 2: TTS
-                    await ws.send_json({"type": "status", "message": "Generating speech..."})
-                    audio_raw, sr = _synthesize(agent_text)
-                    text = agent_text
-
-                except Exception as e:
-                    logger.error(f"Chat error: {e}", exc_info=True)
-                    await ws.send_json({"type": "error", "message": str(e)})
-                    continue
-
-                # Fall through to animation streaming below
-                try:
-
-                    chunks = _agent.prepare_streaming(
-                        text=text,
-                        audio_bytes=audio_raw,
-                        sample_rate=sr,
-                        chunk_duration_ms=100,
-                    )
-                    logger.info(f"Agent speaking: '{text[:50]}...' → {len(chunks)} chunks")
-
-                    await ws.send_json({
-                        "type": "agent.start",
-                        "text": text,
-                        "chunks": len(chunks),
-                    })
-
-                    for chunk in chunks:
-                        await ws.send_json(chunk)
-
-                    await ws.send_json({"type": "agent.end"})
-
-                except Exception as e:
-                    logger.error(f"Animation error: {e}", exc_info=True)
-                    await ws.send_json({"type": "error", "message": str(e)})
-
-            elif msg_type == "agent.speak":
-                # Direct TTS mode: agent text → TTS → animation → stream
-                text = msg.get("text", "")
-                audio_b64 = msg.get("audio_b64", "")
-                sr = msg.get("sample_rate", 16000)
-
-                if not text:
-                    await ws.send_json({"type": "error", "message": "Text required"})
-                    continue
-
-                try:
-                    if audio_b64:
-                        audio_raw = base64.b64decode(audio_b64)
-                    else:
-                        audio_raw, sr = _synthesize(text)
-                    chunks = _agent.prepare_streaming(
-                        text=text,
-                        audio_bytes=audio_raw,
-                        sample_rate=sr,
-                        chunk_duration_ms=100,
-                    )
-                    logger.info(f"Agent speaking: '{text[:50]}...' → {len(chunks)} chunks")
-
-                    # Send start marker
-                    await ws.send_json({
-                        "type": "agent.start",
-                        "text": text,
-                        "chunks": len(chunks),
-                        "duration": chunks[-1]["frames"][-1]["t"] if chunks and chunks[-1]["frames"] else 0,
-                    })
-
-                    # Stream chunks
-                    for chunk in chunks:
-                        await ws.send_json(chunk)
-
-                    # Send end marker
-                    await ws.send_json({"type": "agent.end"})
-
-                except Exception as e:
-                    logger.error(f"Agent speak error: {e}", exc_info=True)
-                    await ws.send_json({"type": "error", "message": str(e)})
+                finally:
+                    is_processing = False
 
             else:
-                await ws.send_json({"type": "error", "message": f"Unknown type: {msg_type}"})
+                await ws.send_json({"type": "error", "message": f"Unknown: {msg_type}"})
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
@@ -451,3 +385,6 @@ async def websocket_endpoint(ws: WebSocket):
             await ws.send_json({"type": "error", "message": str(e)})
         except Exception:
             pass
+    finally:
+        disconnected = True
+        idle_task.cancel()
