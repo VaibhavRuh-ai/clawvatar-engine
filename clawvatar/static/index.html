@@ -6,66 +6,103 @@
     <title>Clawvatar</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:sans-serif;background:#111;color:#ddd;height:100vh;display:flex;flex-direction:column}
-        .top{background:#1a1a1a;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #333}
-        .top h1{font-size:16px;color:#fff}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0f;color:#ddd;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+        .top{background:#12121a;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #222}
+        .top h1{font-size:15px;color:#fff;font-weight:700;letter-spacing:-.5px}
         .top h1 b{color:#7c6ef0}
-        .top .st{font-size:11px;padding:3px 10px;border-radius:10px}
-        .st.off{background:#331a1a;color:#f66}
-        .st.on{background:#1a331a;color:#6f6}
+        .badges{display:flex;gap:8px;align-items:center}
+        .badge{font-size:10px;padding:3px 10px;border-radius:10px;font-weight:600}
+        .badge.off{background:#2a1515;color:#f66}
+        .badge.on{background:#152a15;color:#6f6}
+        .badge.speak{background:#1a1540;color:#a78bfa;display:none}
+        .badge.speak.active{display:inline}
         .wrap{flex:1;display:flex;overflow:hidden}
-        #view{flex:1;position:relative}
+        #view{flex:1;position:relative;background:#0d0d14}
         canvas{width:100%;height:100%;display:block}
-        .side{width:320px;background:#1a1a1a;border-left:1px solid #333;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-        .card{background:#222;border-radius:8px;padding:12px}
-        .card h3{font-size:11px;color:#888;text-transform:uppercase;margin-bottom:8px}
-        .btn{width:100%;padding:10px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;color:#fff;margin-top:6px}
-        .btn-p{background:#7c6ef0}
-        .btn-p:hover{background:#6a5bd6}
-        .btn-g{background:#2a6a3a}
-        .btn-g:hover{background:#3a7a4a}
-        .btn-r{background:#6a2a2a}
-        .btn-r:hover{background:#7a3a3a}
+        .hud{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.65);padding:8px 12px;border-radius:8px;font:11px/1.6 'SF Mono',monospace;pointer-events:none}
+        .hud .l{color:#555}.hud .v{color:#6f6}
+        .side{width:340px;background:#12121a;border-left:1px solid #222;display:flex;flex-direction:column}
+        .panels{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+        .card{background:#1a1a24;border:1px solid #252530;border-radius:10px;padding:14px}
+        .card h3{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;font-weight:700}
+        .btn{width:100%;padding:10px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;color:#fff;transition:all .15s}
+        .btn:active{transform:scale(.98)}
+        .btn-p{background:#7c6ef0}.btn-p:hover{background:#6a5bd6}
+        .btn-g{background:#22663a}.btn-g:hover{background:#2a7a4a}
+        .btn-r{background:#662230}.btn-r:hover{background:#7a2a3a}
+        .btn-s{background:#333;color:#aaa;font-size:11px;padding:8px}.btn-s:hover{background:#444}
+        .btn+.btn{margin-top:6px}
         input[type=file]{display:none}
-        .upload{border:2px dashed #444;border-radius:8px;padding:16px;text-align:center;cursor:pointer;color:#666;font-size:12px}
-        .upload:hover{border-color:#7c6ef0}
-        #log{font-size:10px;font-family:monospace;line-height:1.7;max-height:200px;overflow-y:auto;color:#555}
-        #log .ok{color:#6f6}#log .er{color:#f66}
-        .bar{height:5px;background:#333;border-radius:3px;margin:6px 0}
-        .bar>div{height:100%;background:linear-gradient(90deg,#6f6,#7c6ef0);border-radius:3px;width:0%;transition:width .05s}
-        .info{font-size:11px;color:#666;line-height:1.6}
+        .upload{border:2px dashed #2a2a35;border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:#555;font-size:12px;transition:border-color .2s}
+        .upload:hover{border-color:#7c6ef0;color:#888}
+        .upload svg{display:block;margin:0 auto 8px;opacity:.4}
+        .info{font-size:11px;color:#555;line-height:1.6;margin-top:6px}
+        .info b{color:#888}
+        .bar{height:4px;background:#222;border-radius:2px;margin:8px 0}
+        .bar>div{height:100%;background:linear-gradient(90deg,#6f6,#7c6ef0);border-radius:2px;width:0%;transition:width .05s}
+        .log-wrap{border-top:1px solid #222;max-height:160px;overflow-y:auto;padding:10px 14px}
+        .log-wrap div{font:10px/1.7 'SF Mono',monospace;color:#444}
+        .log-wrap .ok{color:#6f6}.log-wrap .er{color:#f66}.log-wrap .wr{color:#fa0}
+        .stat{display:flex;gap:16px;font:10px/1 monospace;color:#555;padding:8px 14px;border-top:1px solid #222}
+        .stat b{color:#888}
     </style>
 </head>
 <body>
 <div class="top">
-    <h1><b>Claw</b>vatar</h1>
-    <span id="st" class="st off">Disconnected</span>
+    <h1><b>Claw</b>vatar Engine</h1>
+    <div class="badges">
+        <span id="st" class="badge off">Disconnected</span>
+        <span id="spk" class="badge speak">Speaking</span>
+    </div>
 </div>
 <div class="wrap">
-    <div id="view"><canvas id="c"></canvas></div>
+    <div id="view">
+        <canvas id="c"></canvas>
+        <div class="hud">
+            <span class="l">FPS</span> <span id="hFps" class="v">0</span>
+            <span class="l"> Viseme</span> <span id="hVis" class="v">-</span>
+            <span class="l"> Emotion</span> <span id="hEmo" class="v">-</span>
+        </div>
+    </div>
     <div class="side">
-        <div class="card">
-            <h3>1. Upload Avatar (.vrm)</h3>
-            <div class="upload" onclick="document.getElementById('fi').click()">Click or drop .vrm file here</div>
-            <input type="file" id="fi" accept=".vrm,.glb">
-            <div id="ai" class="info" style="margin-top:6px"></div>
+        <div class="panels">
+            <!-- Step 1: Avatar -->
+            <div class="card">
+                <h3>1 &middot; Avatar</h3>
+                <div class="upload" id="dropZone" onclick="document.getElementById('fi').click()">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16"/></svg>
+                    Drop or click &mdash; <b>.vrm</b> file
+                </div>
+                <input type="file" id="fi" accept=".vrm,.glb">
+                <div id="avatarInfo" class="info"></div>
+            </div>
+            <!-- Step 2: Connect -->
+            <div class="card">
+                <h3>2 &middot; Connect</h3>
+                <button class="btn btn-p" onclick="doConnect()" id="btnC">Connect to Server</button>
+            </div>
+            <!-- Step 3: Audio -->
+            <div class="card">
+                <h3>3 &middot; Send Audio</h3>
+                <p class="info" style="margin-top:0;margin-bottom:8px">Upload audio or use mic. Avatar animates with the exact same audio.</p>
+                <input type="file" id="audioFile" accept=".wav,.mp3,.ogg,.webm,.m4a">
+                <button class="btn btn-g" onclick="document.getElementById('audioFile').click()">Upload Audio File</button>
+                <button class="btn btn-p" onclick="toggleMic()" id="btnM">Start Microphone</button>
+                <div class="bar"><div id="lvl"></div></div>
+            </div>
+            <!-- Settings -->
+            <div class="card">
+                <h3>Settings</h3>
+                <button class="btn btn-s" onclick="toggleBg()">Toggle Background</button>
+                <button class="btn btn-s" onclick="resetCam()">Reset Camera</button>
+            </div>
         </div>
-        <div class="card">
-            <h3>2. Connect</h3>
-            <button class="btn btn-p" onclick="doConnect()" id="btnC">Connect</button>
+        <div class="stat">
+            <span><b>Sent</b> <span id="sSent">0</span></span>
+            <span><b>Recv</b> <span id="sRecv">0</span></span>
+            <span><b>Latency</b> <span id="sLat">-</span>ms</span>
         </div>
-        <div class="card">
-            <h3>3. Send Audio</h3>
-            <p class="info">Upload audio file or use mic. Same audio plays back with avatar animation.</p>
-            <input type="file" id="audioFile" accept=".wav,.mp3,.ogg,.webm">
-            <button class="btn btn-g" onclick="document.getElementById('audioFile').click()">Upload Audio File</button>
-            <button class="btn btn-p" onclick="toggleMic()" id="btnM">Start Mic</button>
-            <div class="bar"><div id="lvl"></div></div>
-        </div>
-        <div class="card">
-            <h3>Log</h3>
-            <div id="log"></div>
-        </div>
+        <div class="log-wrap" id="log"></div>
     </div>
 </div>
 
@@ -78,106 +115,77 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
 let VRMLoaderPlugin;
-try {
-    const m = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.1.1/lib/three-vrm.module.min.js');
-    VRMLoaderPlugin = m.VRMLoaderPlugin;
-} catch(e) { log('VRM plugin failed: '+e.message,'er'); }
+try{const m=await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.1.1/lib/three-vrm.module.min.js');VRMLoaderPlugin=m.VRMLoaderPlugin;}catch(e){log('VRM plugin: '+e.message,'er')}
 
-// --- Three.js ---
-const canvas = document.getElementById('c');
-const R = new THREE.WebGLRenderer({canvas, antialias:true});
+const canvas=document.getElementById('c');
+const R=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
 R.setPixelRatio(Math.min(devicePixelRatio,2));
-R.outputColorSpace = THREE.SRGBColorSpace;
-R.toneMapping = THREE.ACESFilmicToneMapping;
+R.outputColorSpace=THREE.SRGBColorSpace;
+R.toneMapping=THREE.ACESFilmicToneMapping;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a22);
-const cam = new THREE.PerspectiveCamera(20,1,0.01,100);
-cam.position.set(0,1.3,2.5);
-const ctrl = new OrbitControls(cam,canvas);
-ctrl.target.set(0,1.0,0);
-ctrl.enableDamping=true;
-ctrl.update();
+const scene=new THREE.Scene();
+const bgColors=['#0d0d14','#1a1520','#151a20','transparent'];
+let bgIdx=0;
+scene.background=new THREE.Color(bgColors[0]);
 
-scene.add(new THREE.AmbientLight(0xffffff,0.8));
-const dl=new THREE.DirectionalLight(0xffffff,1.2);dl.position.set(2,3,2);scene.add(dl);
-const fl=new THREE.DirectionalLight(0x8888ff,0.4);fl.position.set(-2,1,-1);scene.add(fl);
-scene.add(new THREE.GridHelper(4,20,0x333333,0x222222));
+const cam=new THREE.PerspectiveCamera(20,1,.01,100);
+cam.position.set(0,1.35,.9);
+const ctrl=new OrbitControls(cam,canvas);
+ctrl.target.set(0,1.3,0);ctrl.enableDamping=true;ctrl.update();
 
-const loader = new GLTFLoader();
-if(VRMLoaderPlugin) loader.register(p=>new VRMLoaderPlugin(p));
+scene.add(new THREE.AmbientLight(0xffffff,.8));
+const d1=new THREE.DirectionalLight(0xffffff,1.2);d1.position.set(2,3,2);scene.add(d1);
+const d2=new THREE.DirectionalLight(0x8888ff,.4);d2.position.set(-2,1,-1);scene.add(d2);
+const grid=new THREE.GridHelper(4,20,0x222222,0x1a1a1a);scene.add(grid);
 
-function onResize(){
-    const v=document.getElementById('view');
-    R.setSize(v.clientWidth,v.clientHeight);
-    cam.aspect=v.clientWidth/v.clientHeight;
-    cam.updateProjectionMatrix();
-}
-addEventListener('resize',onResize);
-onResize();
+const loader=new GLTFLoader();
+if(VRMLoaderPlugin)loader.register(p=>new VRMLoaderPlugin(p));
 
-let vrm=null, clock=new THREE.Clock();
-let curW={}, tgtW={}, curH={y:0,p:0,r:0}, tgtH={y:0,p:0,r:0};
+function onResize(){const v=document.getElementById('view');R.setSize(v.clientWidth,v.clientHeight);cam.aspect=v.clientWidth/v.clientHeight;cam.updateProjectionMatrix();}
+addEventListener('resize',onResize);onResize();
+
+let vrm=null,clock=new THREE.Clock();
+let curW={},tgtW={},curH={y:0,p:0,r:0},tgtH={y:0,p:0,r:0};
 let headBone=null;
 
-// Server blend shape name → VRM expression name mapping
-const NAMEMAP={
-    'blendShape2.mouth_a':'aa',
-    'blendShape2.mouth_i':'ih',
-    'blendShape2.mouth_u':'ou',
-    'blendShape2.mouth_e':'ee',
-    'blendShape2.mouth_o':'oh',
-    'blendShape2.Blink_L':'blinkLeft',
-    'blendShape2.Blink_R':'blinkRight',
-    'blendShape2.happy':'happy',
-    'blendShape2.angry':'angry',
-    'blendShape2.sorrow':'sad',
-    'blendShape2.joy':'surprised',
+const NM={
+    'blendShape2.mouth_a':'aa','blendShape2.mouth_i':'ih','blendShape2.mouth_u':'ou',
+    'blendShape2.mouth_e':'ee','blendShape2.mouth_o':'oh',
+    'blendShape2.Blink_L':'blinkLeft','blendShape2.Blink_R':'blinkRight',
+    'blendShape2.happy':'happy','blendShape2.angry':'angry',
+    'blendShape2.sorrow':'sad','blendShape2.joy':'surprised',
+    'happy':'happy','angry':'angry','sad':'sad','surprised':'surprised',
+    'relaxed':'relaxed','blinkLeft':'blinkLeft','blinkRight':'blinkRight',
 };
 
 function lerp(a,b,t){return a+(b-a)*t}
+let fpsC=0,fpsT=performance.now();
 
 function animate(){
     requestAnimationFrame(animate);
     ctrl.update();
-
-    // Interpolate weights toward target at 60fps
     const allK=new Set([...Object.keys(curW),...Object.keys(tgtW)]);
-    for(const k of allK){
-        const c=curW[k]||0, t=tgtW[k]||0;
-        const v=lerp(c,t,0.25);
-        if(v>0.003) curW[k]=v; else delete curW[k];
-    }
-    curH.y=lerp(curH.y,tgtH.y,0.12);
-    curH.p=lerp(curH.p,tgtH.p,0.12);
-    curH.r=lerp(curH.r,tgtH.r,0.12);
+    for(const k of allK){const c=curW[k]||0,t=tgtW[k]||0,v=lerp(c,t,.25);if(v>.003)curW[k]=v;else delete curW[k];}
+    curH.y=lerp(curH.y,tgtH.y,.12);curH.p=lerp(curH.p,tgtH.p,.12);curH.r=lerp(curH.r,tgtH.r,.12);
 
-    // Apply to VRM with name mapping
     if(vrm){
         const em=vrm.expressionManager;
         if(em){
-            for(const n of Object.keys(em.expressionMap)) try{em.setValue(n,0)}catch(e){}
-            for(const[k,v] of Object.entries(curW)){
-                const name=NAMEMAP[k]||k;
-                try{em.setValue(name,Math.min(1,v))}catch(e){}
-            }
+            for(const n of Object.keys(em.expressionMap))try{em.setValue(n,0)}catch(e){}
+            for(const[k,v] of Object.entries(curW)){try{em.setValue(NM[k]||k,Math.min(1,v))}catch(e){}}
         }
-        if(headBone){
-            headBone.rotation.y=curH.y*Math.PI/180;
-            headBone.rotation.x=curH.p*Math.PI/180;
-            headBone.rotation.z=curH.r*Math.PI/180;
-        }
+        if(headBone){headBone.rotation.y=curH.y*Math.PI/180;headBone.rotation.x=curH.p*Math.PI/180;headBone.rotation.z=curH.r*Math.PI/180;}
         vrm.update(clock.getDelta());
     }
     R.render(scene,cam);
+    fpsC++;if(performance.now()-fpsT>=1000){document.getElementById('hFps').textContent=fpsC;fpsC=0;fpsT=performance.now();}
 }
 animate();
 
 // --- Load VRM ---
 document.getElementById('fi').onchange=async function(){
     if(!this.files.length)return;
-    const file=this.files[0];
-    log('Loading '+file.name+'...');
+    const file=this.files[0];log('Loading '+file.name+'...');
     const url=URL.createObjectURL(file);
     if(vrm){scene.remove(vrm.scene);vrm=null;headBone=null;}
     try{
@@ -185,242 +193,192 @@ document.getElementById('fi').onchange=async function(){
         vrm=gltf.userData.vrm;
         if(vrm){
             scene.add(vrm.scene);
-            cam.position.set(0,1.35,0.9);
-            ctrl.target.set(0,1.3,0);
-            ctrl.update();
-            // Relax arms
-            try{
-                const h=vrm.humanoid;
-                if(h){
-                    const la=h.getNormalizedBoneNode('leftUpperArm');
-                    const ra=h.getNormalizedBoneNode('rightUpperArm');
-                    if(la)la.rotation.z=1.2;
-                    if(ra)ra.rotation.z=-1.2;
-                    headBone=h.getNormalizedBoneNode('head');
-                }
-            }catch(e){}
+            cam.position.set(0,1.35,.9);ctrl.target.set(0,1.3,0);ctrl.update();
+            try{const h=vrm.humanoid;if(h){const la=h.getNormalizedBoneNode('leftUpperArm'),ra=h.getNormalizedBoneNode('rightUpperArm');if(la)la.rotation.z=1.2;if(ra)ra.rotation.z=-1.2;headBone=h.getNormalizedBoneNode('head');}}catch(e){}
             const names=vrm.expressionManager?Object.keys(vrm.expressionManager.expressionMap):[];
-            document.getElementById('ai').textContent='Expressions: '+names.join(', ');
-            log('VRM loaded: '+names.length+' expressions','ok');
-
-            // Upload to server
-            if(ws&&ws.readyState===1){
+            document.getElementById('avatarInfo').innerHTML='<b>'+file.name+'</b> &mdash; '+names.length+' expressions<br>'+names.join(', ');
+            log('Loaded: '+names.length+' expressions','ok');
+            if(window._ws&&window._ws.readyState===1){
                 const fd=new FormData();fd.append('file',file);
-                try{
-                    const r=await fetch(location.protocol+'//'+location.host+'/upload',{method:'POST',body:fd});
-                    const d=await r.json();
-                    if(!d.error){ws.send(JSON.stringify({type:'avatar.load',model_path:d.path}));log('Server synced','ok');}
-                }catch(e){}
+                try{const r=await fetch(location.protocol+'//'+location.host+'/upload',{method:'POST',body:fd});const d=await r.json();if(!d.error){window._ws.send(JSON.stringify({type:'avatar.load',model_path:d.path}));log('Server synced','ok');}}catch(e){}
             }
         }
     }catch(e){log('Load error: '+e.message,'er');}
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(url);this.value='';
 };
 
 // Drag drop
-const view=document.getElementById('view');
-view.ondragover=e=>{e.preventDefault()};
-view.ondrop=e=>{e.preventDefault();if(e.dataTransfer.files.length){document.getElementById('fi').files=e.dataTransfer.files;document.getElementById('fi').onchange();}};
+const dz=document.getElementById('dropZone');
+document.getElementById('view').ondragover=e=>{e.preventDefault();dz.style.borderColor='#7c6ef0'};
+document.getElementById('view').ondragleave=()=>{dz.style.borderColor=''};
+document.getElementById('view').ondrop=e=>{e.preventDefault();dz.style.borderColor='';if(e.dataTransfer.files.length){const fi=document.getElementById('fi');fi.files=e.dataTransfer.files;fi.onchange();}};
 
-// --- WebSocket ---
-var ws=null;
+// --- Settings ---
+window.toggleBg=function(){
+    bgIdx=(bgIdx+1)%bgColors.length;
+    if(bgColors[bgIdx]==='transparent'){scene.background=null;grid.visible=false;}
+    else{scene.background=new THREE.Color(bgColors[bgIdx]);grid.visible=true;}
+    log('Background: '+(bgColors[bgIdx]==='transparent'?'transparent':bgColors[bgIdx]));
+};
+window.resetCam=function(){cam.position.set(0,1.35,.9);ctrl.target.set(0,1.3,0);ctrl.update();};
 
-window.doConnect=function(){
-    if(ws&&ws.readyState===1){ws.close();return;}
-    const url=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';
+// --- Expose to non-module scope ---
+window._tgtW=()=>tgtW; window._tgtH=()=>tgtH;
+window._setTgt=function(w,h){tgtW=w;tgtH=h;};
+window._vrm=()=>vrm;
+</script>
+
+<script>
+// === Networking (non-module, always runs) ===
+var _ws=null,connected=false,sentC=0,recvC=0;
+
+function log(m,c){var d=document.createElement('div');d.className=c||'';d.textContent=new Date().toLocaleTimeString()+' '+m;var b=document.getElementById('log');b.appendChild(d);b.scrollTop=99999;}
+
+var proto=location.protocol==='https:'?'wss:':'ws:';
+
+function doConnect(){
+    if(connected){if(_ws)_ws.close();return;}
+    var url=proto+'//'+location.host+'/ws';
     log('Connecting...');
-    ws=new WebSocket(url);
-    ws.onopen=function(){
-        document.getElementById('st').className='st on';
-        document.getElementById('st').textContent='Connected';
+    _ws=new WebSocket(url);window._ws=_ws;
+    _ws.onopen=function(){
+        connected=true;
+        document.getElementById('st').className='badge on';document.getElementById('st').textContent='Connected';
         document.getElementById('btnC').textContent='Disconnect';
         log('Connected','ok');
     };
-    ws.onclose=function(){
-        document.getElementById('st').className='st off';
-        document.getElementById('st').textContent='Disconnected';
-        document.getElementById('btnC').textContent='Connect';
-        log('Disconnected');
+    _ws.onclose=function(){
+        connected=false;
+        document.getElementById('st').className='badge off';document.getElementById('st').textContent='Disconnected';
+        document.getElementById('btnC').textContent='Connect to Server';
+        log('Disconnected','wr');
     };
-    ws.onerror=function(){log('Connection error','er')};
-    ws.onmessage=function(e){
+    _ws.onerror=function(){log('Connection error','er')};
+    _ws.onmessage=function(e){
         try{
-            const msg=JSON.parse(e.data);
+            var msg=JSON.parse(e.data);
             if(msg.type==='weights'){
-                // Idle or live weights — apply directly
-                tgtW=msg.weights||{};
-                const h=msg.head||{};
-                tgtH={y:h.yaw||0,p:h.pitch||0,r:h.roll||0};
+                recvC++;document.getElementById('sRecv').textContent=recvC;
+                var w=msg.weights||{},h=msg.head||{};
+                window._setTgt(w,{y:h.yaw||0,p:h.pitch||0,r:h.roll||0});
+                if(msg.viseme)document.getElementById('hVis').textContent=msg.viseme;
+                if(msg.emotion)document.getElementById('hEmo').textContent=msg.emotion;
+                document.getElementById('spk').classList.toggle('active',!!msg.is_speaking);
+                if(msg.latency_ms)document.getElementById('sLat').textContent=msg.latency_ms.toFixed(0);
             }else if(msg.type==='batch_weights'){
-                // Batch response — stored for sync playback (handled by audio upload)
-                if(window._batchResolve) window._batchResolve(msg.frames);
+                if(window._batchResolve)window._batchResolve(msg.frames);
+                log('Batch: '+msg.frames.length+' frames in '+msg.compute_ms+'ms','ok');
             }else if(msg.type==='avatar.ready'){
-                log('Avatar ready: '+(msg.info&&msg.info.name),'ok');
+                log('Avatar: '+(msg.info&&msg.info.name)+' ('+msg.info.blend_shape_count+' shapes)','ok');
             }else if(msg.type==='error'){
                 log('Error: '+msg.message,'er');
             }else if(msg.type==='config.ok'){
-                log('Config: idle='+msg.idle+' fps='+msg.idle_fps,'ok');
+                log('Idle: '+msg.idle_fps+'fps','ok');
             }
-        }catch(err){}
+        }catch(err){console.error(err);}
     };
-};
+}
 
-// --- Audio File Upload ---
+// --- Audio File ---
 document.getElementById('audioFile').onchange=async function(){
-    if(!this.files.length){log('No file selected','er');return;}
-    if(!ws||ws.readyState!==1){log('Connect first','er');return;}
-    const file=this.files[0];
-    log('Loading audio: '+file.name);
-
+    if(!this.files.length){log('No file','er');return;}
+    if(!_ws||_ws.readyState!==1){log('Connect first','er');return;}
+    var file=this.files[0];
+    log('Loading '+file.name+'...');
     try{
-        const buf=await file.arrayBuffer();
+        var buf=await file.arrayBuffer();
+        var ctx=new AudioContext();
+        var decoded=await ctx.decodeAudioData(buf.slice(0));
+        var native=decoded.sampleRate,pcm=decoded.getChannelData(0);
+        var dur=pcm.length/native;
+        log('Audio: '+native+'Hz, '+dur.toFixed(1)+'s');
 
-        // Decode at native rate
-        const decodeCtx=new AudioContext();
-        const decoded=await decodeCtx.decodeAudioData(buf.slice(0));
-        const nativeRate=decoded.sampleRate;
-        const nativePcm=decoded.getChannelData(0);
-        const duration=nativePcm.length/nativeRate;
-        log('Decoded: '+nativeRate+'Hz, '+duration.toFixed(1)+'s');
+        // Downsample to 16kHz
+        var ratio=native/16000,dsLen=Math.round(pcm.length/ratio);
+        var ds=new Float32Array(dsLen);
+        for(var i=0;i<dsLen;i++){var idx=i*ratio,lo=Math.floor(idx),hi=Math.min(lo+1,pcm.length-1),f=idx-lo;ds[i]=pcm[lo]*(1-f)+pcm[hi]*f;}
 
-        // Downsample to 16kHz for server
-        const targetRate=16000;
-        const ratio=nativeRate/targetRate;
-        const dsLen=Math.round(nativePcm.length/ratio);
-        const ds=new Float32Array(dsLen);
-        for(let i=0;i<dsLen;i++){
-            const idx=i*ratio;
-            const lo=Math.floor(idx);
-            const hi=Math.min(lo+1,nativePcm.length-1);
-            const f=idx-lo;
-            ds[i]=nativePcm[lo]*(1-f)+nativePcm[hi]*f;
-        }
+        // Encode
+        var i16=new Int16Array(ds.length);
+        for(var j=0;j<ds.length;j++)i16[j]=Math.max(-32768,Math.min(32767,Math.round(ds[j]*32768)));
+        var bytes=new Uint8Array(i16.buffer);
+        var bin='';for(var j=0;j<bytes.length;j++)bin+=String.fromCharCode(bytes[j]);
 
-        // STEP 1: Send entire audio as one batch, get all weights back at once
-        log('Sending to server...','ok');
+        log('Processing on server...');
+        sentC++;document.getElementById('sSent').textContent=sentC;
 
-        // Convert entire downsampled audio to int16 base64
-        const fullI16=new Int16Array(ds.length);
-        for(let j=0;j<ds.length;j++) fullI16[j]=Math.max(-32768,Math.min(32767,Math.round(ds[j]*32768)));
-        const fullBytes=new Uint8Array(fullI16.buffer);
-        let fullBin='';for(let j=0;j<fullBytes.length;j++) fullBin+=String.fromCharCode(fullBytes[j]);
-
-        // Send batch request and wait for response via shared handler
-        const allWeights=await new Promise((resolve,reject)=>{
+        var frames=await new Promise(function(resolve,reject){
             window._batchResolve=resolve;
-            ws.send(JSON.stringify({type:'audio.batch',data:btoa(fullBin),sample_rate:targetRate,chunk_size:1024}));
-            // Timeout after 30s
-            setTimeout(()=>{window._batchResolve=null;reject(new Error('Batch timeout'));},30000);
+            _ws.send(JSON.stringify({type:'audio.batch',data:btoa(bin),sample_rate:16000,chunk_size:1024}));
+            setTimeout(function(){window._batchResolve=null;reject(new Error('Timeout'))},30000);
         });
         window._batchResolve=null;
 
-        log('Got '+allWeights.length+' frames. Playing...','ok');
+        // Play audio + animate in sync
+        var playBuf=await ctx.decodeAudioData(buf.slice(0));
+        var src=ctx.createBufferSource();src.buffer=playBuf;src.connect(ctx.destination);
+        var chunkDur=1024/16000;
+        var startT=ctx.currentTime;src.start(startT);
+        log('Playing: '+dur.toFixed(1)+'s, '+frames.length+' frames','ok');
+        document.getElementById('spk').classList.add('active');
 
-        // STEP 2: Play audio + animate in PERFECT sync
-        const playBuf2=await decodeCtx.decodeAudioData(buf.slice(0));
-        const src=decodeCtx.createBufferSource();
-        src.buffer=playBuf2;
-        src.connect(decodeCtx.destination);
-
-        const chunkDuration=1024/targetRate; // 64ms per frame
-        const startTime=decodeCtx.currentTime;
-        src.start(startTime);
-
-        let fi=0;
-        function syncPlay(){
-            const elapsed=decodeCtx.currentTime-startTime;
-            const targetFrame=Math.floor(elapsed/chunkDuration);
-
-            if(targetFrame!==fi && targetFrame<allWeights.length){
-                fi=targetFrame;
-                const f=allWeights[fi];
-                tgtW=f.w||{};
-                const h=f.h||{};
-                tgtH={y:h.yaw||0,p:h.pitch||0,r:h.roll||0};
+        var fi=0;
+        function sync(){
+            var elapsed=ctx.currentTime-startT;
+            var target=Math.floor(elapsed/chunkDur);
+            if(target!==fi&&target<frames.length){
+                fi=target;var f=frames[fi];
+                window._setTgt(f.w||{},{y:(f.h&&f.h.yaw)||0,p:(f.h&&f.h.pitch)||0,r:(f.h&&f.h.roll)||0});
+                if(f.v)document.getElementById('hVis').textContent=f.v;
+                document.getElementById('spk').classList.toggle('active',!!f.s);
             }
-
-            if(elapsed<duration){
-                requestAnimationFrame(syncPlay);
-            }else{
-                tgtW={};tgtH={y:0,p:0,r:0};
-                log('Playback complete','ok');
-            }
+            if(elapsed<dur)requestAnimationFrame(sync);
+            else{window._setTgt({},{y:0,p:0,r:0});document.getElementById('spk').classList.remove('active');log('Done','ok');}
         }
-        syncPlay();
-
-        src.onended=()=>decodeCtx.close();
-    }catch(e){
-        log('Audio error: '+e.message,'er');
-        console.error(e);
-    }
+        sync();
+        src.onended=function(){ctx.close()};
+    }catch(e){log('Error: '+e.message,'er');}
     this.value='';
 };
 
 // --- Mic ---
-var micStream=null,micProc=null,micCtx=null,micOn=false;
-
-window.toggleMic=function(){
-    if(micOn){stopMic();return;}
-    startMic();
-};
+var micS=null,micP=null,micC=null,micOn=false;
+function toggleMic(){micOn?stopMic():startMic();}
 
 async function startMic(){
-    if(!ws||ws.readyState!==1){log('Connect first','er');return;}
+    if(!_ws||_ws.readyState!==1){log('Connect first','er');return;}
     try{
-        micStream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
-        micCtx=new AudioContext();
-        const rate=micCtx.sampleRate;
-        const src=micCtx.createMediaStreamSource(micStream);
-        micProc=micCtx.createScriptProcessor(4096,1,1);
-        micProc.onaudioprocess=function(e){
-            const raw=e.inputBuffer.getChannelData(0);
-            // Show level
-            let s=0;for(let i=0;i<raw.length;i++) s+=raw[i]*raw[i];
+        micS=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
+        micC=new AudioContext();var rate=micC.sampleRate;
+        log('Mic: '+rate+'Hz → 16kHz','ok');
+        var src=micC.createMediaStreamSource(micS);
+        micP=micC.createScriptProcessor(4096,1,1);
+        micP.onaudioprocess=function(e){
+            var raw=e.inputBuffer.getChannelData(0);
+            var s=0;for(var i=0;i<raw.length;i++)s+=raw[i]*raw[i];
             document.getElementById('lvl').style.width=Math.min(100,Math.sqrt(s/raw.length)*500)+'%';
-            // Downsample to 16kHz
-            const ratio=rate/16000;
-            const len=Math.round(raw.length/ratio);
-            const ds=new Float32Array(len);
-            for(let i=0;i<len;i++){const idx=i*ratio;const lo=Math.floor(idx);const hi=Math.min(lo+1,raw.length-1);const f=idx-lo;ds[i]=raw[lo]*(1-f)+raw[hi]*f;}
-            // Send
-            const i16=new Int16Array(ds.length);
-            for(let j=0;j<ds.length;j++) i16[j]=Math.max(-32768,Math.min(32767,Math.round(ds[j]*32768)));
-            const bytes=new Uint8Array(i16.buffer);
-            let bin='';for(let j=0;j<bytes.length;j++) bin+=String.fromCharCode(bytes[j]);
-            ws.send(JSON.stringify({type:'audio',data:btoa(bin),sample_rate:16000}));
+            var ratio=rate/16000,len=Math.round(raw.length/ratio),ds=new Float32Array(len);
+            for(var i=0;i<len;i++){var idx=i*ratio,lo=Math.floor(idx),hi=Math.min(lo+1,raw.length-1),f=idx-lo;ds[i]=raw[lo]*(1-f)+raw[hi]*f;}
+            var i16=new Int16Array(ds.length);
+            for(var j=0;j<ds.length;j++)i16[j]=Math.max(-32768,Math.min(32767,Math.round(ds[j]*32768)));
+            var bytes=new Uint8Array(i16.buffer);var bin='';for(var j=0;j<bytes.length;j++)bin+=String.fromCharCode(bytes[j]);
+            _ws.send(JSON.stringify({type:'audio',data:btoa(bin),sample_rate:16000}));
+            sentC++;if(sentC%20===0)document.getElementById('sSent').textContent=sentC;
         };
-        src.connect(micProc);
-        micProc.connect(micCtx.destination);
-        micOn=true;
-        document.getElementById('btnM').textContent='Stop Mic';
-        document.getElementById('btnM').className='btn btn-r';
-        log('Mic started ('+rate+'Hz -> 16kHz)','ok');
+        src.connect(micP);micP.connect(micC.destination);
+        micOn=true;document.getElementById('btnM').textContent='Stop Microphone';document.getElementById('btnM').className='btn btn-r';
     }catch(e){log('Mic error: '+e.message,'er');}
 }
-
 function stopMic(){
-    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
-    if(micProc){micProc.disconnect();micProc=null;}
-    if(micCtx){micCtx.close();micCtx=null;}
-    micOn=false;
-    document.getElementById('btnM').textContent='Start Mic';
-    document.getElementById('btnM').className='btn btn-p';
+    if(micS){micS.getTracks().forEach(function(t){t.stop()});micS=null;}
+    if(micP){micP.disconnect();micP=null;}
+    if(micC){micC.close();micC=null;}
+    micOn=false;document.getElementById('btnM').textContent='Start Microphone';document.getElementById('btnM').className='btn btn-p';
     document.getElementById('lvl').style.width='0%';
-    log('Mic stopped');
 }
 
-// --- Log ---
-function log(msg,cls){
-    const d=document.createElement('div');
-    d.className=cls||'';
-    d.textContent=new Date().toLocaleTimeString()+' '+msg;
-    const box=document.getElementById('log');
-    box.appendChild(d);
-    box.scrollTop=99999;
-}
-window.log=log;
-
-log('Ready. Upload VRM → Connect → Send audio.','ok');
+setInterval(function(){if(_ws&&connected)_ws.send(JSON.stringify({type:'ping'}))},15000);
+log('Ready. Upload avatar → Connect → Send audio.','ok');
 </script>
 </body>
 </html>
